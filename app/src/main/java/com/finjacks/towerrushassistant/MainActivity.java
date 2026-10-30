@@ -8,10 +8,12 @@ import android.content.pm.PackageManager;
 import android.media.projection.MediaProjectionManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
 import android.view.Gravity;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 
 public class MainActivity extends Activity {
@@ -19,9 +21,20 @@ public class MainActivity extends Activity {
     private static final int REQUEST_NOTIFICATIONS = 42;
 
     private TextView status;
+    private TextView report;
     private Button startButton;
     private Button stopButton;
-    private boolean captureRequested;
+    private final Handler uiHandler = new Handler();
+    private final Runnable refreshReport = new Runnable() {
+        @Override public void run() {
+            if (report != null) {
+                String value = getSharedPreferences(ScreenCaptureService.PREFS, MODE_PRIVATE)
+                        .getString(ScreenCaptureService.KEY_REPORT, "No scan yet. Start screen capture to read visible game text.");
+                report.setText(value);
+            }
+            uiHandler.postDelayed(this, 1200);
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -33,64 +46,74 @@ public class MainActivity extends Activity {
     private void buildDashboard() {
         LinearLayout page = new LinearLayout(this);
         page.setOrientation(LinearLayout.VERTICAL);
-        page.setGravity(Gravity.CENTER_HORIZONTAL);
-        page.setPadding(24, 30, 24, 24);
+        page.setPadding(22, 28, 22, 22);
         page.setBackgroundColor(0xFF0F121B);
 
         TextView title = new TextView(this);
         title.setText("TOWER RUSH 2");
         title.setTextColor(0xFFFFFFFF);
-        title.setTextSize(27);
+        title.setTextSize(26);
         title.setGravity(Gravity.CENTER);
-        title.setPadding(0, 14, 0, 6);
+        title.setPadding(0, 12, 0, 5);
         page.addView(title, matchWrap());
 
         TextView subtitle = new TextView(this);
-        subtitle.setText("ASSISTED PLAYER  •  GALAXSYS");
+        subtitle.setText("SCREEN READER  •  ASSISTED MODE");
         subtitle.setTextColor(0xFF70BEFF);
-        subtitle.setTextSize(13);
+        subtitle.setTextSize(12);
         subtitle.setGravity(Gravity.CENTER);
-        subtitle.setPadding(0, 0, 0, 24);
+        subtitle.setPadding(0, 0, 0, 18);
         page.addView(subtitle, matchWrap());
 
         status = new TextView(this);
-        status.setText("SCREEN CAPTURE IS OFF\n\nStart capture when you are ready. Android will show its own permission screen before sharing your display.");
+        status.setText("SCREEN CAPTURE IS OFF");
         status.setTextColor(0xFFE1E6F0);
-        status.setTextSize(15);
+        status.setTextSize(14);
         status.setGravity(Gravity.CENTER);
-        status.setPadding(18, 22, 18, 22);
+        status.setPadding(14, 16, 14, 16);
         status.setBackgroundColor(0xFF1D2330);
         page.addView(status, matchWrap());
 
         startButton = new Button(this);
-        startButton.setText("Start screen capture");
+        startButton.setText("Start screen analysis");
         startButton.setAllCaps(false);
         LinearLayout.LayoutParams startParams = matchWrap();
-        startParams.topMargin = 22;
+        startParams.topMargin = 12;
         page.addView(startButton, startParams);
         startButton.setOnClickListener(v -> requestScreenCapture());
 
         stopButton = new Button(this);
-        stopButton.setText("Stop screen capture");
+        stopButton.setText("Stop screen analysis");
         stopButton.setAllCaps(false);
         stopButton.setEnabled(false);
         page.addView(stopButton, matchWrap());
         stopButton.setOnClickListener(v -> stopScreenCapture());
 
-        TextView next = new TextView(this);
-        next.setText("NEXT: recognise visible Tower Rush 2 information and explain uncertainty. This version only establishes the secure Android capture session; it does not yet read or interpret game details.");
-        next.setTextColor(0xFFB0B9C8);
-        next.setTextSize(13);
-        next.setGravity(Gravity.CENTER);
-        next.setPadding(8, 24, 8, 12);
-        page.addView(next, matchWrap());
+        TextView reportTitle = new TextView(this);
+        reportTitle.setText("LIVE SCREEN OBSERVATIONS");
+        reportTitle.setTextColor(0xFF70BEFF);
+        reportTitle.setTextSize(13);
+        reportTitle.setPadding(2, 22, 2, 8);
+        page.addView(reportTitle, matchWrap());
+
+        report = new TextView(this);
+        report.setText("No scan yet. Start screen capture to read visible game text.");
+        report.setTextColor(0xFFE1E6F0);
+        report.setTextSize(14);
+        report.setPadding(16, 18, 16, 18);
+        report.setBackgroundColor(0xFF1D2330);
+
+        ScrollView scroll = new ScrollView(this);
+        scroll.addView(report);
+        LinearLayout.LayoutParams reportParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f);
+        page.addView(scroll, reportParams);
 
         TextView safety = new TextView(this);
-        safety.setText("Privacy and control: capture begins only after Android permission. Frames are immediately discarded in this stage; nothing is saved or uploaded. No bets or game buttons are tapped. You operate the game yourself.");
+        safety.setText("Privacy: OCR runs on this phone. Screen images are not saved or uploaded. The reader only reports visible text; it does not recommend bets, press BUILD, activate AUTO, buy bonuses, or predict random results. You control every game action.");
         safety.setTextColor(0xFFB0B9C8);
-        safety.setTextSize(12);
-        safety.setGravity(Gravity.CENTER);
-        safety.setPadding(8, 8, 8, 8);
+        safety.setTextSize(11);
+        safety.setPadding(4, 14, 4, 4);
         page.addView(safety, matchWrap());
 
         setContentView(page);
@@ -131,13 +154,10 @@ public class MainActivity extends Activity {
         Intent service = new Intent(this, ScreenCaptureService.class);
         service.putExtra(ScreenCaptureService.EXTRA_RESULT_CODE, resultCode);
         service.putExtra(ScreenCaptureService.EXTRA_RESULT_DATA, data);
-        if (Build.VERSION.SDK_INT >= 26) {
-            startForegroundService(service);
-        } else {
-            startService(service);
-        }
-        captureRequested = true;
-        status.setText("Starting secure capture… Check the persistent notification. Then switch to Tower Rush 2. This version does not analyse frames yet.");
+        if (Build.VERSION.SDK_INT >= 26) startForegroundService(service);
+        else startService(service);
+
+        status.setText("Screen analysis active. Switch to Tower Rush 2; recognised text will appear here when you return.");
         stopButton.setEnabled(true);
     }
 
@@ -145,8 +165,7 @@ public class MainActivity extends Activity {
         Intent service = new Intent(this, ScreenCaptureService.class);
         service.setAction(ScreenCaptureService.ACTION_STOP);
         startService(service);
-        captureRequested = false;
-        status.setText("Stop requested. Screen capture will end and the notification will disappear.");
+        status.setText("Stop requested. Screen analysis is ending.");
         startButton.setEnabled(true);
         stopButton.setEnabled(false);
     }
@@ -157,8 +176,13 @@ public class MainActivity extends Activity {
                 ViewGroup.LayoutParams.WRAP_CONTENT);
     }
 
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
+    @Override protected void onResume() {
+        super.onResume();
+        uiHandler.post(refreshReport);
+    }
+
+    @Override protected void onPause() {
+        uiHandler.removeCallbacks(refreshReport);
+        super.onPause();
     }
 }
