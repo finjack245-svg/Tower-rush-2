@@ -9,6 +9,18 @@ import java.util.regex.Pattern;
 public final class GameScreenInterpreter {
     private GameScreenInterpreter() { }
 
+    public static String getBuildSignal(String rawText) {
+        String lower = rawText == null ? "" : rawText.toLowerCase(Locale.ROOT);
+        boolean buildVisible = containsWord(lower, "build");
+        boolean bonusVisible = lower.contains("buy bonus");
+        boolean cashoutVisible = lower.contains("cashout") || lower.contains("cash out");
+
+        if (cashoutVisible) return "WAIT — cashout/round text detected";
+        if (buildVisible && bonusVisible) return "READY TO DECIDE — BUILD control visible";
+        if (buildVisible) return "UNCLEAR — BUILD seen, but pre-build screen not confirmed";
+        return "WAIT — BUILD control not detected";
+    }
+
     public static String makeReport(String rawText) {
         String text = rawText == null ? "" : rawText.trim();
         if (text.isEmpty()) {
@@ -28,7 +40,7 @@ public final class GameScreenInterpreter {
         if (containsWord(lower, "auto")) observations.add("AUTO control is visible (not activated).");
         if (containsWord(lower, "all in") || containsWord(lower, "allin")) observations.add("ALL IN control is visible (not activated).");
         if (containsWord(lower, "buy bonus")) observations.add("BUY BONUS control is visible (not activated).");
-        if (containsWord(lower, "cashout") || containsWord(lower, "cash out")) observations.add("A cashout label appears on screen.");
+        if (containsWord(lower, "cashout") || containsWord(lower, "cash out")) observations.add("Cashout-related text is visible.");
         if (lower.contains("2x chance") || lower.contains("2 x chance")) observations.add("2X CHANCE feature label is visible.");
 
         Matcher multiplier = Pattern.compile("(?i)\\b([0-9]+(?:[.,][0-9]+)?\\s*x)\\b").matcher(text);
@@ -37,24 +49,12 @@ public final class GameScreenInterpreter {
         Matcher floor = Pattern.compile("(?i)\\b(?:floor|level)\\s*[:#-]?\\s*([0-9]+)\\b").matcher(text);
         if (floor.find()) observations.add("Visible floor/level label: " + floor.group(1));
 
-        if (lower.contains("tower rush")) observations.add("Tower Rush title text detected.");
-
         StringBuilder report = new StringBuilder();
-        if (lower.contains("build") && lower.contains("buy bonus")) {
-            report.append("SCREEN ESTIMATE: likely the pre-build/game-ready view.\n");
-        } else if (lower.contains("cashout") || lower.contains("cash out")) {
-            report.append("SCREEN ESTIMATE: a cashout-related screen or control may be visible.\n");
-        } else {
-            report.append("SCREEN ESTIMATE: game screen text detected; round state is not confirmed.\n");
-        }
+        report.append("INTERFACE STATUS: ").append(getBuildSignal(text)).append("\\n");
+        for (String item : observations) report.append("• ").append(item).append('\\n');
+        if (observations.isEmpty()) report.append("No known Tower Rush 2 labels were confidently recognised.\\n");
 
-        if (observations.isEmpty()) {
-            report.append("No known Tower Rush 2 labels were confidently recognised.\n");
-        } else {
-            for (String item : observations) report.append("• ").append(item).append('\n');
-        }
-
-        report.append("\nImportant: this reads visible text only. It cannot see hidden game logic, forecast random outcomes, or tell you that a move will win. All game actions remain manual.");
+        report.append("\\nThis is only a screen-state check. READY TO DECIDE means the interface resembles the pre-build screen; it does NOT identify a lucky, safe, or profitable moment. Outcomes cannot be predicted from this screen. No game controls are pressed.");
         return report.toString();
     }
 
