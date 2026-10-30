@@ -37,3 +37,10 @@ A standalone Android companion for Galaxsys Tower Rush 2, targeting the Samsung 
 - Installs and launches on Android 14 without parsing errors.
 - Capture starts only after system consent and stops immediately on request.
 - No app feature can place a wager or activate a game control.
+
+
+## BUILD interface-status assistant
+- The app reports READY TO DECIDE only when OCR sees both BUILD and BUY BONUS and does not see cashout-related text.
+- If BUILD alone is seen, it reports UNCLEAR; if BUILD is absent or the latest scan is stale, it reports WAIT.
+- The label describes the apparent interface state only. It is not a timing, safety, or win prediction.
+- OCR can misread the screen. The player remains responsible for all game decisions; the app never taps BUILD or changes a wager.
