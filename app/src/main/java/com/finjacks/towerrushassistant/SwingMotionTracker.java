@@ -3,7 +3,6 @@ package com.finjacks.towerrushassistant;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 
-import java.util.ArrayDeque;
 
 /**
  * Tracks the warm-coloured suspended building in the Tower Rush 2 play area.
