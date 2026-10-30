@@ -36,6 +36,8 @@ public class ScreenCaptureService extends Service {
     public static final String ACTION_STOP = "com.finjacks.towerrushassistant.STOP_CAPTURE";
     public static final String PREFS = "tower_rush_local_scan";
     public static final String KEY_REPORT = "latest_report";
+    public static final String KEY_SIGNAL = "latest_build_signal";
+    public static final String KEY_UPDATED_AT = "latest_updated_at";
 
     private static final String CHANNEL_ID = "tower_rush_capture";
     private static final int NOTIFICATION_ID = 72;
@@ -152,10 +154,10 @@ public class ScreenCaptureService extends Service {
             InputImage input = InputImage.fromBitmap(bitmap, 0);
             recognizer.process(input)
                     .addOnSuccessListener(result -> {
-                        if (!stopping) saveReport(GameScreenInterpreter.makeReport(result.getText()));
+                        if (!stopping) saveReport(result.getText());
                     })
                     .addOnFailureListener(error -> {
-                        if (!stopping) saveReport("Text recognition is temporarily unavailable. Keep the game screen visible and try again.");
+                        if (!stopping) saveReport("");
                     })
                     .addOnCompleteListener(task -> {
                         bitmap.recycle();
@@ -196,9 +198,14 @@ public class ScreenCaptureService extends Service {
         return intent.getParcelableExtra(EXTRA_RESULT_DATA);
     }
 
-    private void saveReport(String value) {
+    private void saveReport(String rawText) {
+        String signal = GameScreenInterpreter.getBuildSignal(rawText);
+        String report = GameScreenInterpreter.makeReport(rawText);
         getSharedPreferences(PREFS, MODE_PRIVATE).edit()
-                .putString(KEY_REPORT, value).apply();
+                .putString(KEY_REPORT, report)
+                .putString(KEY_SIGNAL, signal)
+                .putLong(KEY_UPDATED_AT, System.currentTimeMillis())
+                .apply();
     }
 
     private Notification buildNotification() {
