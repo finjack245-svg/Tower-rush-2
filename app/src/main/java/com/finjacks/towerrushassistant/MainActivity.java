@@ -21,6 +21,7 @@ public class MainActivity extends Activity {
     private static final int REQUEST_NOTIFICATIONS = 42;
 
     private TextView status;
+    private TextView buildSignal;
     private TextView report;
     private Button startButton;
     private Button stopButton;
@@ -28,16 +29,24 @@ public class MainActivity extends Activity {
     private final Runnable refreshReport = new Runnable() {
         @Override public void run() {
             if (report != null) {
-                String value = getSharedPreferences(ScreenCaptureService.PREFS, MODE_PRIVATE)
-                        .getString(ScreenCaptureService.KEY_REPORT, "No scan yet. Start screen capture to read visible game text.");
+                android.content.SharedPreferences prefs =
+                        getSharedPreferences(ScreenCaptureService.PREFS, MODE_PRIVATE);
+                String value = prefs.getString(ScreenCaptureService.KEY_REPORT,
+                        "No scan yet. Start screen analysis to read the game interface.");
+                long updatedAt = prefs.getLong(ScreenCaptureService.KEY_UPDATED_AT, 0L);
+                String signal = prefs.getString(ScreenCaptureService.KEY_SIGNAL,
+                        "WAIT — no fresh screen reading");
+                if (updatedAt == 0L || System.currentTimeMillis() - updatedAt > 5000L) {
+                    signal = "WAIT — screen reading is not fresh";
+                }
+                buildSignal.setText(signal);
                 report.setText(value);
             }
-            uiHandler.postDelayed(this, 1200);
+            uiHandler.postDelayed(this, 1000);
         }
     };
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
+    @Override protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         buildDashboard();
         requestNotificationPermissionIfNeeded();
@@ -58,7 +67,7 @@ public class MainActivity extends Activity {
         page.addView(title, matchWrap());
 
         TextView subtitle = new TextView(this);
-        subtitle.setText("SCREEN READER  •  ASSISTED MODE");
+        subtitle.setText("BUILD TIMING ASSISTANT  •  ASSISTED MODE");
         subtitle.setTextColor(0xFF70BEFF);
         subtitle.setTextSize(12);
         subtitle.setGravity(Gravity.CENTER);
@@ -66,7 +75,7 @@ public class MainActivity extends Activity {
         page.addView(subtitle, matchWrap());
 
         status = new TextView(this);
-        status.setText("SCREEN CAPTURE IS OFF");
+        status.setText("SCREEN ANALYSIS IS OFF");
         status.setTextColor(0xFFE1E6F0);
         status.setTextSize(14);
         status.setGravity(Gravity.CENTER);
@@ -89,33 +98,46 @@ public class MainActivity extends Activity {
         page.addView(stopButton, matchWrap());
         stopButton.setOnClickListener(v -> stopScreenCapture());
 
+        TextView signalTitle = new TextView(this);
+        signalTitle.setText("BUILD BUTTON STATUS");
+        signalTitle.setTextColor(0xFF70BEFF);
+        signalTitle.setTextSize(13);
+        signalTitle.setPadding(2, 20, 2, 8);
+        page.addView(signalTitle, matchWrap());
+
+        buildSignal = new TextView(this);
+        buildSignal.setText("WAIT — no fresh screen reading");
+        buildSignal.setTextColor(0xFFFFFFFF);
+        buildSignal.setTextSize(19);
+        buildSignal.setGravity(Gravity.CENTER);
+        buildSignal.setPadding(16, 22, 16, 22);
+        buildSignal.setBackgroundColor(0xFF263247);
+        page.addView(buildSignal, matchWrap());
+
         TextView reportTitle = new TextView(this);
         reportTitle.setText("LIVE SCREEN OBSERVATIONS");
         reportTitle.setTextColor(0xFF70BEFF);
         reportTitle.setTextSize(13);
-        reportTitle.setPadding(2, 22, 2, 8);
+        reportTitle.setPadding(2, 18, 2, 8);
         page.addView(reportTitle, matchWrap());
 
         report = new TextView(this);
-        report.setText("No scan yet. Start screen capture to read visible game text.");
+        report.setText("No scan yet. Start screen analysis to read the game interface.");
         report.setTextColor(0xFFE1E6F0);
         report.setTextSize(14);
         report.setPadding(16, 18, 16, 18);
         report.setBackgroundColor(0xFF1D2330);
-
         ScrollView scroll = new ScrollView(this);
         scroll.addView(report);
-        LinearLayout.LayoutParams reportParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f);
-        page.addView(scroll, reportParams);
+        page.addView(scroll, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
 
         TextView safety = new TextView(this);
-        safety.setText("Privacy: OCR runs on this phone. Screen images are not saved or uploaded. The reader only reports visible text; it does not recommend bets, press BUILD, activate AUTO, buy bonuses, or predict random results. You control every game action.");
+        safety.setText("READY TO DECIDE only means the screen resembles the pre-build interface. It is not a prediction or a winning-time signal. OCR can make mistakes. The app never taps BUILD or changes your bet; you make every game decision.");
         safety.setTextColor(0xFFB0B9C8);
         safety.setTextSize(11);
         safety.setPadding(4, 14, 4, 4);
         page.addView(safety, matchWrap());
-
         setContentView(page);
     }
 
@@ -140,24 +162,20 @@ public class MainActivity extends Activity {
         startActivityForResult(manager.createScreenCaptureIntent(), REQUEST_CAPTURE);
     }
 
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+    @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode != REQUEST_CAPTURE) return;
-
         if (resultCode != RESULT_OK || data == null) {
             startButton.setEnabled(true);
             status.setText("Permission was not granted. Capture remains off.");
             return;
         }
-
         Intent service = new Intent(this, ScreenCaptureService.class);
         service.putExtra(ScreenCaptureService.EXTRA_RESULT_CODE, resultCode);
         service.putExtra(ScreenCaptureService.EXTRA_RESULT_DATA, data);
         if (Build.VERSION.SDK_INT >= 26) startForegroundService(service);
         else startService(service);
-
-        status.setText("Screen analysis active. Switch to Tower Rush 2; recognised text will appear here when you return.");
+        status.setText("Screen analysis active. Switch to Tower Rush 2.");
         stopButton.setEnabled(true);
     }
 
@@ -168,11 +186,11 @@ public class MainActivity extends Activity {
         status.setText("Stop requested. Screen analysis is ending.");
         startButton.setEnabled(true);
         stopButton.setEnabled(false);
+        buildSignal.setText("WAIT — screen analysis stopped");
     }
 
     private LinearLayout.LayoutParams matchWrap() {
-        return new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
+        return new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT);
     }
 
