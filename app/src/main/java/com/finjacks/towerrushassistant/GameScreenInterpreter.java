@@ -50,11 +50,11 @@ public final class GameScreenInterpreter {
         if (floor.find()) observations.add("Visible floor/level label: " + floor.group(1));
 
         StringBuilder report = new StringBuilder();
-        report.append("INTERFACE STATUS: ").append(getBuildSignal(text)).append("\\n");
-        for (String item : observations) report.append("• ").append(item).append('\\n');
-        if (observations.isEmpty()) report.append("No known Tower Rush 2 labels were confidently recognised.\\n");
+        report.append("INTERFACE STATUS: ").append(getBuildSignal(text)).append("\n");
+        for (String item : observations) report.append("• ").append(item).append('\n');
+        if (observations.isEmpty()) report.append("No known Tower Rush 2 labels were confidently recognised.\n");
 
-        report.append("\\nThis is only a screen-state check. READY TO DECIDE means the interface resembles the pre-build screen; it does NOT identify a lucky, safe, or profitable moment. Outcomes cannot be predicted from this screen. No game controls are pressed.");
+        report.append("\nThis is only a screen-state check. READY TO DECIDE means the interface resembles the pre-build screen; it does NOT identify a lucky, safe, or profitable moment. Outcomes cannot be predicted from this screen. No game controls are pressed.");
         return report.toString();
     }
 
