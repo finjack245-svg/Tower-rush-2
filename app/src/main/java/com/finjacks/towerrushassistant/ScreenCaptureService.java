@@ -79,6 +79,7 @@ public class ScreenCaptureService extends Service {
             return START_NOT_STICKY;
         }
 
+        stopping = false;
         Notification notification = buildNotification();
         if (Build.VERSION.SDK_INT >= 29) {
             startForeground(NOTIFICATION_ID, notification,
@@ -163,6 +164,7 @@ public class ScreenCaptureService extends Service {
                     });
             frame = null; // ownership passes to the completion listener
         } catch (IllegalStateException | IllegalArgumentException error) {
+            processing.set(false);
             // The display may be shutting down while a frame is delivered.
         } finally {
             if (frame != null) frame.close();
